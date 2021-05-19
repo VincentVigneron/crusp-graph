@@ -1,0 +1,17 @@
+[package]
+name = "crusp-graph-derive"
+version = "0.0.1"
+authors = ["Vincent Vigneron <vigneron.vincent.49@gmail.com>"]
+edition = "2018"
+
+[lib]
+proc-macro = true
+
+[dev-dependencies]
+trybuild = "1.0"
+crusp-graph = { version = "0.0.1", path="../crusp-graph" }
+
+[dependencies]
+syn = { version = "1.0.72", features = ["extra-traits","visit-mut", "full"] }
+quote = { version = "1.0.9" }
+proc-macro2 = { version = "1.0.26" }

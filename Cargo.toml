@@ -1,0 +1,6 @@
+[workspace]
+
+members = [
+    "crusp-graph",
+    "crusp-graph-derive",
+]
