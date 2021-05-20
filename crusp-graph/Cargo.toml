@@ -15,7 +15,7 @@ crusp-graph-derive = { version = "0.0.1",  path = "../crusp-graph-derive"}
 [dependencies]
 priority-queue = "1.0.5"
 crusp-graph-derive = { version = "0.0.1", optional = true, path = "../crusp-graph-derive"}
-crusp-core = { version = "0.0.3", git = "https://github.com/VincentVigneron/crusp-core" , branch = "main"}
+crusp-core = { version = "0.0.4", git = "https://github.com/VincentVigneron/crusp-core" , branch = "main"}
 
 [features]
 derive = ["crusp-graph-derive"]
