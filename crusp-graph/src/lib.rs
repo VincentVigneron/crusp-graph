@@ -56,6 +56,9 @@ use std::rc::Rc;
 // create default event for event that only support one propagate function
 
 pub trait GraphNode: Eq + Hash + std::cmp::PartialOrd + std::cmp::Ord + Copy + Debug {}
+
+impl GraphNode for crusp_core::VariableId {}
+impl GraphNode for crusp_core::ConstraintId {}
 pub trait GraphEvent: Mergeable + Subsumed + Nullable + Debug {}
 
 pub trait InputEventRegister<InNode, InEvent, Output> {
