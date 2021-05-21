@@ -1,6 +1,6 @@
 [package]
 name = "crusp-graph"
-version = "0.0.3"
+version = "0.0.4"
 authors = ["Vincent Vigneron <vigneron.vincent.49@gmail.com>"]
 edition = "2018"
 
@@ -10,12 +10,12 @@ path = "tests/progress.rs"
 
 [dev-dependencies]
 trybuild = "1.0"
-crusp-graph-derive = { version = "0.0.3",  path = "../crusp-graph-derive"}
+crusp-graph-derive = { version = "^0.0.4",  path = "../crusp-graph-derive"}
 
 [dependencies]
 priority-queue = "1.0.5"
-crusp-graph-derive = { version = "0.0.3", optional = true, path = "../crusp-graph-derive"}
-crusp-core = { version = "0.0.4", git = "https://github.com/VincentVigneron/crusp-core" , branch = "main"}
+crusp-graph-derive = { version = "^0.0.4", optional = true, path = "../crusp-graph-derive"}
+crusp-core = { version = "^0.0.4", git = "https://github.com/VincentVigneron/crusp-core" , branch = "main"}
 
 [features]
 derive = ["crusp-graph-derive"]
