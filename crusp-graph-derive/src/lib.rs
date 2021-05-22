@@ -381,9 +381,9 @@ pub fn crusp_lazy_graph(_attr: TokenStream, item: TokenStream) -> TokenStream {
         quote!(
             impl ::crusp_graph::OutputEventHandler<#out_node, #out_event> for #graph_ident
             {
-                fn collect_and_pop(&mut self) -> Option<(#out_node, #out_event)> {
+                fn collect_and_pop(&mut self, ignored: Option<OutNode>) -> Option<(#out_node, #out_event)> {
                     let (__crusp__outs, #(#in_idents),*) = self.split_in_out();
-                    #(#in_idents2.trigger_events(|__crusp__out| __crusp__outs.collect_out_event(__crusp__out)));*;
+                    #(#in_idents2.trigger_events(|__crusp__out| __crusp__outs.collect_out_event(__crusp__out, ignored)));*;
                     self.#out_ident.pop()
                 }
         })
@@ -423,9 +423,9 @@ pub fn crusp_lazy_graph(_attr: TokenStream, item: TokenStream) -> TokenStream {
                where
                #(Look: LookEvent<#in_nodes, #in_events>),*,
             {
-                fn collect_look_and_pop(&mut self, look: &mut Look) -> Option<(#out_node, #out_event)> {
+                fn collect_look_and_pop(&mut self, look: &mut Look, ignored: Option<OutNode>) -> Option<(#out_node, #out_event)> {
                     let (__crusp__outs, #(#in_idents),*) = self.split_in_out();
-                    #(#in_idents2.trigger_look_events(|__crusp__out| __crusp__outs.collect_out_event(__crusp__out), look));*;
+                    #(#in_idents2.trigger_look_events(|__crusp__out| __crusp__outs.collect_out_event(__crusp__out, ignored), look));*;
                     self.#out_ident.pop()
                 }
         })

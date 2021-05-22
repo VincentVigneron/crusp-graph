@@ -101,7 +101,10 @@ where
     OutNode: GraphNode,
     OutEvent: GraphEvent,
 {
-    fn collect_and_pop(&mut self) -> Option<(OutNode, OutEvent)>;
+    fn collect_and_pop_not_ignored(&mut self) -> Option<(OutNode, OutEvent)> {
+        self.collect_and_pop(None)
+    }
+    fn collect_and_pop(&mut self, ignored: Option<OutNode>) -> Option<(OutNode, OutEvent)>;
 }
 
 pub trait OutputEventHandlerLookup<OutNode, OutEvent, Look>
@@ -109,9 +112,12 @@ where
     OutNode: GraphNode,
     OutEvent: GraphEvent,
 {
+    fn collect_look_and_pop_not_ignored(&mut self, look: &mut Look) -> Option<(OutNode, OutEvent)> {
+        self.collect_look_and_pop(look, None)
+    }
     // look for in events?
     // gurantee to collect all events since last collect
-    fn collect_look_and_pop(&mut self, look: &mut Look) -> Option<(OutNode, OutEvent)>;
+    fn collect_look_and_pop(&mut self, look: &mut Look, ignored: Option<OutNode>) -> Option<(OutNode, OutEvent)>;
 }
 
 pub trait VisitMut<T> {
@@ -534,12 +540,21 @@ where
         HandlerOutputBuilder::new()
     }
 
-    pub fn collect_out_event(&mut self, out: &OutCostEventLink<OutEvent>) {
+    pub fn collect_out_event(&mut self, out: &OutCostEventLink<OutEvent>, ignored_out: Option<OutNode>) {
         unsafe {
             let out_idx = out.idx;
-            self.queue.push(out_idx, out.cost);
-            let curr_state = self.mode.get_unchecked_mut(out_idx);
-            *curr_state = curr_state.merge(out.event);
+            let ignored = match ignored_out {
+                Some(ignored_out) => {
+                    let out_node = self.outs.get_unchecked(out_idx);
+                    ignored_out == *out_node
+                },
+                _ => false,
+            };
+            if !ignored {
+                self.queue.push(out_idx, out.cost);
+                let curr_state = self.mode.get_unchecked_mut(out_idx);
+                *curr_state = curr_state.merge(out.event);
+            }
         }
     }
 

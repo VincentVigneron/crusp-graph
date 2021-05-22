@@ -2,6 +2,7 @@
 
 use crusp_graph::*;
 use crusp_graph_derive::crusp_lazy_graph;
+use crusp_core::{Nullable, Mergeable, Subsumed};
 use std::fmt::Debug;
 
 #[derive(
@@ -183,24 +184,30 @@ pub fn main() {
     assert_eq!(visitor.n1, 2);
     assert_eq!(visitor.n2, 1);
     graph.notify(&in1, &ie1);
-    let event = graph.collect_and_pop();
+    let event = graph.collect_and_pop(None);
     assert_eq!(event, Some((on0, oe0)));
-    let event = graph.collect_and_pop();
+    let event = graph.collect_and_pop(None);
     assert_eq!(event, None);
     graph.notify(&in1, &ie1);
     graph.notify(&in12, &ie12);
     graph.notify(&in2, &ie2);
-    let event = graph.collect_and_pop();
+    let event = graph.collect_and_pop(None);
     assert_eq!(event, Some((on1, oe1)));
-    let event = graph.collect_and_pop();
+    let event = graph.collect_and_pop(None);
     assert_eq!(event, Some((on2, oe2)));
     graph.notify(&in12, &ie12);
-    let event = graph.collect_and_pop();
+    let event = graph.collect_and_pop(None);
     assert_eq!(event, Some((on1, oe1)));
-    let event = graph.collect_and_pop();
+    let event = graph.collect_and_pop(None);
     assert_eq!(event, Some((on0, oe0)));
-    let event = graph.collect_and_pop();
+    let event = graph.collect_and_pop(None);
     assert_eq!(event, None);
-    let event = graph.collect_and_pop();
+    let event = graph.collect_and_pop(None);
+    assert_eq!(event, None);
+    graph.notify(&in1, &ie1);
+    graph.notify(&in12, &ie12);
+    let event = graph.collect_and_pop(Some(on1));
+    assert_eq!(event, Some((on0, oe0)));
+    let event = graph.collect_and_pop(None);
     assert_eq!(event, None);
 }
