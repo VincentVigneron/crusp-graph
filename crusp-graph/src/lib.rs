@@ -25,11 +25,8 @@
 use crusp_core::{Mergeable, Nullable, Subsumed};
 use priority_queue::PriorityQueue;
 
-use std::collections::hash_map::Entry;
-use std::collections::HashMap;
-use std::default::Default;
+use std::{default::Default, marker::PhantomData};
 use std::fmt::Debug;
-use std::hash::Hash;
 use std::rc::Rc;
 
 // TODO MAYBE SPLIT EVENT HANDLER AND GRAPH CONSTRAINT LIST OF VARIABLES
@@ -55,7 +52,7 @@ use std::rc::Rc;
 
 // create default event for event that only support one propagate function
 
-pub trait GraphNode: Eq + Hash + std::cmp::PartialOrd + std::cmp::Ord + Copy + Debug {}
+pub trait GraphNode: std::hash::Hash + PartialEq + Eq + Ord + PartialOrd + Into<usize> + From<usize> + Copy + Debug {}
 
 impl GraphNode for crusp_core::VariableId {}
 impl GraphNode for crusp_core::ConstraintId {}
@@ -171,8 +168,8 @@ where
     InNode: GraphNode,
     InEvent: GraphEvent,
 {
-    in_nodes: HashMap<InNode, usize>,
     in_events: Vec<Vec<EventLink<InEvent, Output>>>,
+    _in_node: PhantomData<InNode>,
 }
 
 pub struct LazyInputEventGraph<InNode, InEvent, Output>
@@ -180,8 +177,8 @@ where
     InNode: GraphNode,
     InEvent: GraphEvent,
 {
-    in_nodes: HashMap<InNode, usize>,
     in_events: Vec<Vec<EventLink<InEvent, Output>>>,
+    _in_node: PhantomData<InNode>,
 }
 
 impl<InNode, InEvent, Output> Default for LazyInputEventGraphBuilder<InNode, InEvent, Output>
@@ -201,30 +198,27 @@ where
 {
     pub fn new() -> Self {
         LazyInputEventGraphBuilder {
-            in_nodes: HashMap::new(),
             in_events: Vec::new(),
+            _in_node: PhantomData,
         }
     }
 
     #[allow(clippy::shadow_reuse)]
     pub fn add_event(&mut self, node: InNode, event: InEvent, out: Output) {
-        let idx = self.in_nodes.len();
-        let idx = *self.in_nodes.entry(node).or_insert(idx);
-        let link = EventLink {
+        let idx: usize = node.into();
+        if idx >= self.in_events.len() {
+            self.in_events.resize_with(idx + 1, Vec::new)
+        }
+        self.in_events[idx].push(EventLink {
             in_event: event,
             out: out,
-        };
-        if idx >= self.in_events.len() {
-            self.in_events.push(vec![link]);
-        } else {
-            self.in_events[idx].push(link);
-        }
+        });
     }
 
     pub fn finalize(self) -> LazyInputEventGraph<InNode, InEvent, Output> {
         LazyInputEventGraph {
-            in_nodes: self.in_nodes,
             in_events: self.in_events,
+            _in_node: PhantomData,
         }
     }
 }
@@ -250,7 +244,7 @@ where
             return false;
         }
         match self.events.last_mut() {
-            Some(&mut (l_node, ref mut l_evt)) if l_node == *node => {
+            Some(&mut (l_node, ref mut l_evt)) if l_node.into() == (*node).into() => {
                 *l_evt = l_evt.merge(*event);
             }
             _ => {
@@ -297,14 +291,14 @@ where
             return;
         }
         self.events.sort_unstable_by(|lhs, rhs| {
-            lhs.0.partial_cmp(&rhs.0).expect("Comparable input nodes")
+            lhs.0.into().partial_cmp(&rhs.0.into()).expect("Comparable input nodes")
         });
         // consumes events here
         let events: Vec<_> = self.events.drain(..).collect();
         let mut events = events.into_iter();
         let (mut curr_node, mut curr_event) = events.next().expect("At least one element");
         for (in_node, in_event) in events {
-            if curr_node == in_node {
+            if curr_node.into() == in_node.into() {
                 curr_event = curr_event.merge(in_event);
             } else {
                 self.process_in_event(&curr_node, &curr_event, &mut process);
@@ -324,14 +318,14 @@ where
             return;
         }
         self.events.sort_unstable_by(|lhs, rhs| {
-            lhs.0.partial_cmp(&rhs.0).expect("Comparable input nodes")
+            lhs.0.into().partial_cmp(&rhs.0.into()).expect("Comparable input nodes")
         });
         // consumes events here
         let events: Vec<_> = self.events.drain(..).collect();
         let mut events = events.into_iter();
         let (mut curr_node, mut curr_event) = events.next().expect("At least one element");
         for (in_node, in_event) in events {
-            if curr_node == in_node {
+            if curr_node.into() == in_node.into() {
                 curr_event = curr_event.merge(in_event);
             } else {
                 look_in.look_event(&curr_node, &curr_event);
@@ -351,11 +345,7 @@ where
     {
         // /self.changes.entry(in_node).or_insert(true);
         // TODO: rmv bound checks
-        let in_idx = *self
-            .graph
-            .in_nodes
-            .get(in_node)
-            .expect("Existing input node");
+        let in_idx: usize = (*in_node).into();
         self.graph.in_events[in_idx]
             .iter()
             .filter(|&out_event| in_event.is_subsumed_under(&out_event.in_event.merge(*in_event)))
@@ -369,8 +359,9 @@ where
     SrcNode: GraphNode,
     DstNode: GraphNode,
 {
-    map_to_idx: HashMap<SrcNode, usize>,
+    len: usize,
     ins: Vec<Vec<DstNode>>,
+    _src_node: PhantomData<SrcNode>
 }
 
 impl<SrcNode, DstNode> AdjacentListGraphBuilder<SrcNode, DstNode>
@@ -380,17 +371,20 @@ where
 {
     fn new() -> Self {
         AdjacentListGraphBuilder {
-            map_to_idx: HashMap::new(),
+            len: 0usize,
             ins: Vec::new(),
+            _src_node: PhantomData,
         }
     }
 
     pub fn finalize(mut self) -> AdjacentListGraph<SrcNode, DstNode> {
-        self.ins[..].sort();
-        self.ins.dedup();
+        for ins in self.ins.iter_mut() {
+            ins[..].sort();
+            ins.dedup();
+        }
         AdjacentListGraph {
-            map_to_idx: self.map_to_idx,
             ins: self.ins,
+            _src_node: PhantomData,
         }
     }
 }
@@ -401,10 +395,10 @@ where
     InNode: GraphNode,
 {
     fn add_node(&mut self, out_node: &OutNode, in_node: &InNode) {
-        let len = self.ins.len();
-        let idx = *self.map_to_idx.entry(*out_node).or_insert(len);
-        if idx == len {
-            self.ins.push(Vec::new());
+        let idx: usize = (*out_node).into();
+        if idx >= self.len {
+            self.ins.resize_with(idx + 1, Vec::new);
+            self.len = idx + 1;
         }
         self.ins[idx].push(*in_node);
     }
@@ -415,8 +409,8 @@ where
     SrcNode: GraphNode,
     DstNode: GraphNode,
 {
-    map_to_idx: HashMap<SrcNode, usize>,
     ins: Vec<Vec<DstNode>>,
+    _src_node: PhantomData<SrcNode>
 }
 
 impl<SrcNode, DstNode> AdjacentListGraph<SrcNode, DstNode>
@@ -449,23 +443,22 @@ where
     where
         Visitor: VisitMut<DstNode>,
     {
-        if let Some(idx) = self.map_to_idx.get(out_node) {
-            let ins = self.ins[*idx].iter();
-            for v in ins {
+        if let Some(ins) = self.ins.get((*out_node).into()) {
+            for v in ins.iter() {
                 visitor.visit_mut(&v);
             }
         }
     }
 }
 
-pub struct OutCostEventLink<OutEvent: GraphEvent> {
-    idx: usize,
+pub struct OutCostEventLink<OutNode: GraphNode, OutEvent: GraphEvent> {
+    idx: OutNode,
     event: OutEvent,
     cost: i64,
 }
 
-impl<OutEvent: GraphEvent> OutCostEventLink<OutEvent> {
-    pub fn new(idx: usize, event: OutEvent, cost: i64) -> Self {
+impl<OutNode: GraphNode, OutEvent: GraphEvent> OutCostEventLink<OutNode, OutEvent> {
+    pub fn new(idx: OutNode, event: OutEvent, cost: i64) -> Self {
         OutCostEventLink {
             idx: idx,
             event: event,
@@ -479,9 +472,9 @@ where
     OutNode: GraphNode,
     OutEvent: GraphEvent,
 {
-    outs: Vec<OutNode>,
-    out_map: HashMap<OutNode, usize>,
-    _event: std::marker::PhantomData<OutEvent>,
+    last_out: OutNode,
+    _event: PhantomData<OutEvent>,
+    _out_node: PhantomData<OutNode>,
 }
 
 impl<OutNode, OutEvent> Default for HandlerOutputBuilder<OutNode, OutEvent>
@@ -501,29 +494,20 @@ where
 {
     pub fn new() -> Self {
         HandlerOutputBuilder {
-            outs: Vec::new(),
-            out_map: HashMap::new(),
-            _event: std::marker::PhantomData,
+            last_out: 0usize.into(),
+            _event: PhantomData,
+            _out_node: PhantomData,
         }
     }
 
-    pub fn add_node(&mut self, node: OutNode) -> usize {
-        let idx = match self.out_map.entry(node) {
-            Entry::Occupied(e) => *e.get(),
-            Entry::Vacant(e) => {
-                let idx = *e.insert(self.outs.len());
-                self.outs.push(node);
-                idx
-            }
-        };
-        idx
+    pub fn add_node(&mut self, node: OutNode) {
+        self.last_out = self.last_out.max(node);
     }
 
     pub fn finalize(self) -> HandlerOutput<OutNode, OutEvent> {
-        let len = self.outs.len();
+        let len = self.last_out.into() + 1;
         HandlerOutput {
             mode: vec![OutEvent::null(); len],
-            outs: self.outs,
             queue: PriorityQueue::new(),
         }
     }
@@ -535,8 +519,7 @@ where
     OutEvent: GraphEvent,
 {
     mode: Vec<OutEvent>,
-    outs: Vec<OutNode>,
-    queue: PriorityQueue<usize, i64>,
+    queue: PriorityQueue<OutNode, i64>,
 }
 
 impl<OutNode, OutEvent> HandlerOutput<OutNode, OutEvent>
@@ -548,19 +531,18 @@ where
         HandlerOutputBuilder::new()
     }
 
-    pub fn collect_out_event(&mut self, out: &OutCostEventLink<OutEvent>, ignored_out: Option<OutNode>) {
+    pub fn collect_out_event(&mut self, out: &OutCostEventLink<OutNode, OutEvent>, ignored_out: Option<OutNode>) {
         unsafe {
-            let out_idx = out.idx;
+            let out_node = out.idx;
             let ignored = match ignored_out {
-                Some(ignored_out) => {
-                    let out_node = self.outs.get_unchecked(out_idx);
-                    ignored_out == *out_node
+                Some(ignored_out) if ignored_out == out_node => {
+                    true
                 },
                 _ => false,
             };
             if !ignored {
-                self.queue.push(out_idx, out.cost);
-                let curr_state = self.mode.get_unchecked_mut(out_idx);
+                self.queue.push(out_node, out.cost);
+                let curr_state = self.mode.get_unchecked_mut(out_node.into());
                 *curr_state = curr_state.merge(out.event);
             }
         }
@@ -569,7 +551,7 @@ where
     #[inline]
     pub fn pop(&mut self) -> Option<(OutNode, OutEvent)> {
         let (out_idx, _cost) = self.queue.pop()?;
-        let event = self.mode[out_idx].nullify();
-        Some((self.outs[out_idx], event))
+        let event = self.mode[out_idx.into()].nullify();
+        Some((out_idx, event))
     }
 }

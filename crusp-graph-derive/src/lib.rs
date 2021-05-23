@@ -118,7 +118,7 @@ pub fn crusp_lazy_graph(_attr: TokenStream, item: TokenStream) -> TokenStream {
                 #ident: ::crusp_graph::LazyInputEventGraphBuilder<
                     #node,
                     #event,
-                    ::crusp_graph::OutCostEventLink<#out_event>
+                    ::crusp_graph::OutCostEventLink<#out_node, #out_event>
                 >
             )
         })
@@ -150,7 +150,7 @@ pub fn crusp_lazy_graph(_attr: TokenStream, item: TokenStream) -> TokenStream {
                 #ident: ::crusp_graph::LazyInputEventHandler<
                     #node,
                     #event,
-                    ::crusp_graph::OutCostEventLink<#out_event>
+                    ::crusp_graph::OutCostEventLink<#out_node, #out_event>
                 >
             )
         })
@@ -205,22 +205,22 @@ pub fn crusp_lazy_graph(_attr: TokenStream, item: TokenStream) -> TokenStream {
             let rev_ident = syn::Ident::new(&rev_ident, span!());
             let out_node = out_node.clone();
             let out_event = out_event.clone();
-            let out_ident = out_ident.clone();
             let in_node = node;
             let in_event = event;
+            let out_ident = out_ident.clone();
             quote!(
                 impl ::crusp_graph::InOutEventHandlerBuilder<#out_node, #out_event, #in_node, #in_event>
                     for #graph_ident_builder
                 {
                     fn add_event(&mut self, out_node: &#out_node, out_event: &#out_event, in_node: &#in_node, in_event: &#in_event, cost: i64) {
-                        let idx = self.#out_ident.add_node(*out_node);
-                        let out = <::crusp_graph::OutCostEventLink<#out_event>>::new(
-                            idx,
+                        let out = <::crusp_graph::OutCostEventLink<#out_node, #out_event>>::new(
+                            *out_node,
                             *out_event,
                             cost
                         );
                         self.#in_ident.add_event(*in_node, *in_event, out);
                         self.#rev_ident.add_node(out_node, in_node);
+                        self.#out_ident.add_node(*out_node);
                     }
                 }
             )
@@ -288,7 +288,7 @@ pub fn crusp_lazy_graph(_attr: TokenStream, item: TokenStream) -> TokenStream {
             {
                 pub fn new() -> Self {
                     #graph_ident_builder {
-                        #(#in_idents: <::crusp_graph::LazyInputEventHandler<#in_nodes, #in_events, ::crusp_graph::OutCostEventLink<#out_events>>>::builder()),*,
+                        #(#in_idents: <::crusp_graph::LazyInputEventHandler<#in_nodes, #in_events, ::crusp_graph::OutCostEventLink<#out_node, #out_events>>>::builder()),*,
                         #(#in_rev_idents: <::crusp_graph::AdjacentListGraph<#out_nodes,#in_rev_nodes>>::builder()),*,
                         #out_ident: <::crusp_graph::HandlerOutput<#out_node, #out_event>>::builder(),
                     }
@@ -296,7 +296,7 @@ pub fn crusp_lazy_graph(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
                 pub fn finalize(self) -> #graph_ident {
                     #graph_ident {
-                        #(#in_idents2: <::crusp_graph::LazyInputEventHandler<#in_nodes2, #in_events2, ::crusp_graph::OutCostEventLink<#out_events2>>>::new(self.#in_idents3.finalize())),*,
+                        #(#in_idents2: <::crusp_graph::LazyInputEventHandler<#in_nodes2, #in_events2, ::crusp_graph::OutCostEventLink<#out_node, #out_events2>>>::new(self.#in_idents3.finalize())),*,
                         #(#in_rev_idents2: ::std::rc::Rc::new(self.#in_rev_idents3.finalize())),*,
                         #out_ident: self.#out_ident.finalize(),
                     }
@@ -352,7 +352,7 @@ pub fn crusp_lazy_graph(_attr: TokenStream, item: TokenStream) -> TokenStream {
                         &mut ::crusp_graph::HandlerOutput<#out_node, #out_event>,
                         #(&mut ::crusp_graph::LazyInputEventHandler<
                             #in_nodes, #in_events,
-                            ::crusp_graph::OutCostEventLink<#out_events>>
+                            ::crusp_graph::OutCostEventLink<#out_node, #out_events>>
                         ),*
                     )
                 {

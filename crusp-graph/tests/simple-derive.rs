@@ -13,6 +13,19 @@ pub struct OutNode {
 }
 impl GraphNode for OutNode {}
 
+
+impl From<OutNode> for usize {
+    fn from(idx: OutNode) -> Self {
+        idx.idx
+    }
+}
+
+impl From<usize> for OutNode {
+    fn from(idx: usize) -> Self {
+        OutNode{idx}
+    }
+}
+
 #[derive(PartialEq, Eq, Copy, Clone, Debug)]
 pub struct OutEvent {
     val: i32,
@@ -51,6 +64,19 @@ pub struct InNode1 {
 }
 impl GraphNode for InNode1 {}
 
+
+impl From<InNode1> for usize {
+    fn from(idx: InNode1) -> Self {
+        idx.idx
+    }
+}
+
+impl From<usize> for InNode1 {
+    fn from(idx: usize) -> Self {
+        InNode1{idx}
+    }
+}
+
 #[derive(Copy, Clone, Debug)]
 pub struct InEvent1 {
     val: i32,
@@ -88,6 +114,17 @@ pub struct InNode2 {
     idx: usize,
 }
 impl GraphNode for InNode2 {}
+impl From<InNode2> for usize {
+    fn from(idx: InNode2) -> Self {
+        idx.idx
+    }
+}
+
+impl From<usize> for InNode2 {
+    fn from(idx: usize) -> Self {
+        InNode2{idx}
+    }
+}
 
 #[derive(Copy, Clone, Debug)]
 pub struct InEvent2 {
