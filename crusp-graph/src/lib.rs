@@ -105,6 +105,10 @@ where
         self.collect_and_pop(None)
     }
     fn collect_and_pop(&mut self, ignored: Option<OutNode>) -> Option<(OutNode, OutEvent)>;
+    fn collect(&mut self, ignored: Option<OutNode>);
+    fn collect_not_ignored(&mut self) {
+        self.collect(None)
+    }
 }
 
 pub trait OutputEventHandlerLookup<OutNode, OutEvent, Look>
@@ -118,6 +122,10 @@ where
     // look for in events?
     // gurantee to collect all events since last collect
     fn collect_look_and_pop(&mut self, look: &mut Look, ignored: Option<OutNode>) -> Option<(OutNode, OutEvent)>;
+    fn collect_look(&mut self, look: &mut Look, ignored: Option<OutNode>);
+    fn collect_look_not_ignored(&mut self, look: &mut Look) {
+        self.collect_look(look, None)
+    }
 }
 
 pub trait VisitMut<T> {
